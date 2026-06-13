@@ -35,6 +35,20 @@ class Settings(BaseSettings):
         "https://www.googleapis.com/auth/calendar.readonly",
     )
 
+    # Phase 2 — Drive folder IDs for ingestion
+    drive_summaries_folder_id: str = ""
+    drive_transcripts_folder_id: str = ""
+
+    # Phase 2 — signed file proxy URLs (separate from session secret so they
+    # can be rotated independently)
+    file_url_secret: str = ""
+    file_url_ttl_seconds: int = 600  # 10 minutes
+
+    # Phase 2 — scheduler
+    sync_enabled: bool = True
+    sync_interval_minutes: int = 10
+    sync_run_on_startup: bool = True
+
     @property
     def is_local(self) -> bool:
         return self.app_env == "local"
