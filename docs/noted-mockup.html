@@ -15,6 +15,12 @@
   - shadcn primitives cover: dialog (all modals), select (space/location), tabs/segmented
     (context picker), dropdown-menu, toast, avatar, badge, button, card.
   - Custom Tailwind layouts (no shadcn primitive): the Calendar week grid and the Tickets Kanban.
+
+  SUPERSEDED — Noted does NOT chat or call the Anthropic API. The "Project Context" tab is a registry
+  mapping each Claude Project label to a Google Drive folder; Noted files meeting/ticket Google Docs into
+  that folder, and the user admits them to their claude.ai Project (which auto-syncs). Add-to-Project
+  entry points: the minute detail, the ticket detail, and the "Add items as context" modal inside the
+  Project Context tab. See build spec §9. (The old in-app chat is fully removed.)
 -->
 <html lang="en">
 <head>
@@ -312,6 +318,21 @@
   .cmt .c-text{font-size:13.5px;color:var(--ink-2);line-height:1.55;margin-top:3px;}
 
   /* PROJECTS */
+  .cp-list{display:flex;flex-direction:column;gap:12px;}
+  .cp-card{display:flex;align-items:center;gap:16px;padding:16px 18px;background:var(--surface);
+     border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);cursor:pointer;
+     transition:border-color .12s,box-shadow .12s,transform .06s;text-align:left;width:100%;}
+  .cp-card:hover{border-color:var(--border-strong);box-shadow:var(--shadow-md);transform:translateY(-1px);}
+  .cp-card:hover .cp-name{color:var(--accent);}
+  .cp-card .pc-ic{width:42px;height:42px;border-radius:11px;background:var(--accent-tint);color:var(--accent);
+     display:flex;align-items:center;justify-content:center;flex:none;}
+  .cp-card .pc-ic svg{width:20px;height:20px;}
+  .cp-mid{flex:1;min-width:0;}
+  .cp-name{font-size:15px;font-weight:650;letter-spacing:-.01em;}
+  .cp-folder{font-size:11.5px;color:var(--muted);margin-top:3px;}
+  .cp-stat{font-size:11px;color:var(--muted-2);margin-top:2px;}
+  .cp-actions{display:flex;gap:8px;flex:none;}
+  .pj-links{display:flex;gap:8px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border);}
   .proj-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;}
   .proj-card{text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
      box-shadow:var(--shadow-sm);padding:20px;display:flex;gap:15px;transition:border-color .12s,box-shadow .12s,transform .06s;}
@@ -525,7 +546,7 @@
     <button class="nav-item" data-nav="tickets" onclick="nav('tickets')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9V7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 6v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-6z"/><path d="M14 5v14" stroke-dasharray="2 2"/></svg>Tickets</button>
     <button class="nav-item" data-nav="projects" onclick="nav('projects')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a4 4 0 0 1 4 4c0 5-4 4-4 9"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/><path d="M5 8.5 8 7M19 8.5 16 7"/></svg>Projects</button>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a4 4 0 0 1 4 4c0 5-4 4-4 9"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/><path d="M5 8.5 8 7M19 8.5 16 7"/></svg>Project Context</button>
 
     <div class="side-spacer"></div>
     <button class="side-user" onclick="nav('profile')">
@@ -594,10 +615,9 @@
       <div id="detail-content"></div>
       <div class="action-bar">
         <button class="btn btn-ghost" onclick="openConfluence()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/></svg>Create Confluence page</button>
-        <button class="btn btn-ghost" onclick="openJira()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 21 12l-9 9-9-9z"/></svg>Draft Jira ticket</button>
         <div class="spacer"></div>
         <button class="btn btn-primary" style="width:auto;padding:10px 18px" onclick="openAddProject()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add to project</button>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add to Claude Project</button>
       </div>
     </section>
 
@@ -615,33 +635,15 @@
       <div class="action-bar">
         <div class="spacer"></div>
         <button class="btn btn-primary" style="width:auto;padding:10px 18px" onclick="openTicketAddProject()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add to project</button>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Add to Claude Project</button>
       </div>
     </section>
 
-    <!-- PROJECTS -->
+    <!-- PROJECT CONTEXT (registry) -->
     <section class="view" id="view-projects">
-      <div class="page-head"><h2>Projects</h2><p>Chat with Claude using the meeting context for each workstream.</p></div>
-      <div class="proj-grid" id="proj-grid"></div>
-    </section>
-
-    <!-- PROJECT CHAT -->
-    <section class="view" id="view-chat">
-      <div class="chat-wrap">
-        <div class="chat-head">
-          <button class="back-link" style="margin:0" onclick="nav('projects')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 6l-6 6 6 6"/></svg></button>
-          <span class="pc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a4 4 0 0 1 4 4c0 5-4 4-4 9"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg></span>
-          <span><span class="ttl" id="chat-title">TSD Workstream</span><br><span class="ctx" id="chat-ctx">6 meeting summaries in context</span></span>
-          <button class="ac-manage" style="margin-left:auto" onclick="openContext()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M12 5v14M5 12h14"/></svg>Add context</button>
-        </div>
-        <div class="chat-body"><div class="chat-inner" id="chat-inner"></div></div>
-        <div class="chat-foot">
-          <div class="chat-inputwrap">
-            <textarea class="chat-input" id="chat-input" rows="1" placeholder="Ask about this project's meetings…" oninput="growInput(this)" onkeydown="chatKey(event)"></textarea>
-            <button class="send-btn" id="send-btn" onclick="sendChat()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
-          </div>
-        </div>
-      </div>
+      <div class="page-head"><h2>Project Context</h2><p>Claude Projects you've linked to a Drive folder. Noted files meeting &amp; ticket Docs here for your claude.ai Projects to sync.</p></div>
+      <div style="margin-bottom:18px"><button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="toast('Creating a new Project Context — Noted creates a Google Drive folder for it')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:2px"><path d="M12 5v14M5 12h14"/></svg>Create new Project Context</button></div>
+      <div class="cp-list" id="cp-list"></div>
     </section>
 
     <!-- PROFILE -->
@@ -655,7 +657,7 @@
         <span class="eyebrow" style="display:block;margin-bottom:6px">Connected accounts</span>
         <div class="conn-row"><span class="conn-ic" style="color:#4285F4">G</span><span><div class="conn-name">Google Workspace</div><div class="conn-sub">Drive · Calendar · Sign-in</div></span><span class="badge-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>Connected</span></div>
         <div class="conn-row"><span class="conn-ic" style="color:#2684FF">A</span><span><div class="conn-name">Atlassian</div><div class="conn-sub">Confluence · Jira</div></span><span class="badge-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>Connected</span></div>
-        <div class="conn-row"><span class="conn-ic" style="color:var(--accent)">C</span><span><div class="conn-name">Claude</div><div class="conn-sub">Powers project chat & drafting</div></span><span class="badge-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>Connected</span></div>
+        <div class="conn-row"><span class="conn-ic" style="color:var(--accent)">G</span><span><div class="conn-name">Gemini</div><div class="conn-sub">Reformats summaries into Confluence pages</div></span><span class="badge-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg>Connected</span></div>
       </div>
       <div style="margin-top:18px;max-width:560px">
         <button class="btn btn-ghost" style="width:auto;padding:10px 18px" onclick="signOut()">Sign out</button>
@@ -684,11 +686,26 @@
 </div>
 
 <div class="overlay" id="ov-add" onclick="if(event.target===this)closeAll()">
-  <div class="modal"><div class="modal-head"><div><h3>Add to project</h3><div class="m-sub" id="add-sub"></div></div><button class="modal-close" onclick="closeAll()">✕</button></div>
+  <div class="modal"><div class="modal-head"><div><h3>Add to Claude Project</h3><div class="m-sub" id="add-sub"></div></div><button class="modal-close" onclick="closeAll()">✕</button></div>
     <div class="modal-body"><div class="proj-pick" id="add-list"></div>
-      <div class="field-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>This becomes part of that project's context, so Claude can reference it in chat.</div>
+      <div class="field-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Noted files this as a Google Doc into each project's Drive folder. Admit the new Doc to the Project once in claude.ai (it auto-syncs after).</div>
     </div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeAll()">Cancel</button><button class="btn btn-primary" id="add-confirm" onclick="confirmAdd()" disabled>Add</button></div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeAll()">Cancel</button><button class="btn btn-primary" id="add-confirm" onclick="confirmAdd()" disabled>File Doc</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-projadd" onclick="if(event.target===this)closeAll()">
+  <div class="modal" style="max-width:540px"><div class="modal-head"><div><h3>Add context to project</h3><div class="m-sub" id="pj-sub"></div></div><button class="modal-close" onclick="closeAll()">✕</button></div>
+    <div class="modal-body">
+      <div class="pj-links">
+        <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:12px" onclick="toast('Opening Drive folder…')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-right:4px;vertical-align:-2px"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Open folder</button>
+        <button class="btn btn-ghost" style="width:auto;padding:7px 12px;font-size:12px" onclick="toast('Opening Project in claude.ai…')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-right:4px;vertical-align:-2px"><path d="M12 3a4 4 0 0 1 4 4c0 5-4 4-4 9"/><circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none"/></svg>Open in Claude</button>
+      </div>
+      <div class="seg"><button class="seg-btn active" data-seg="min" onclick="pjSeg('min')">Minutes</button><button class="seg-btn" data-seg="tkt" onclick="pjSeg('tkt')">Tickets</button></div>
+      <div class="ctx-list" id="pj-list"></div>
+      <div class="field-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Each selected item is filed as a Google Doc into this project's folder. Admit new Docs once in claude.ai (they auto-sync after).</div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeAll()">Cancel</button><button class="btn btn-primary" id="pj-confirm" style="width:auto;padding:9px 16px" onclick="confirmPj()" disabled>Add to Claude Project</button></div>
   </div>
 </div>
 
@@ -699,11 +716,30 @@
         <select id="conf-space"><option>Team Knowledge Base</option><option>Engineering</option><option>Product</option></select></div>
       <div class="form-row"><label>Location in space (folder or parent page)</label>
         <select id="conf-loc"><option>Meeting Notes  ›  TSD Standups (folder)</option><option>Meeting Notes (folder)</option><option>Engineering Home (page)</option><option>Top level of space</option></select></div>
-      <div class="form-row"><label>Page format — Claude maps the summary and transcript into this</label>
-        <textarea id="conf-fmt" rows="6"></textarea></div>
-      <div class="field-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Same settings as “Always add to Confluence” — pre-filled from this series when it's set up.</div>
+      <div class="form-row"><label>Page template</label>
+        <select id="conf-tmpl-sel" onchange="applyTmpl('conf')"><option>Standard meeting notes</option><option>Decisions &amp; action items</option><option>Executive summary</option><option>Custom…</option></select></div>
+      <div class="form-row"><label>Template body — Gemini fills this from the summary</label>
+        <textarea id="conf-tmpl" rows="6" class="tmpl-area"></textarea></div>
+      <div class="field-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Gemini fills your template using both the meeting <strong>transcript and summary</strong> (for accuracy) — use <span class="mono">{{title}}</span>, <span class="mono">{{date}}</span>, and your own headings.</div>
     </div>
     <div class="modal-foot"><button class="btn btn-ghost" onclick="closeAll()">Cancel</button><button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="toast('Confluence page created');closeAll()">Publish page</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-claude" onclick="if(event.target===this)closeAll()">
+  <div class="modal" style="max-width:500px"><div class="modal-head"><div><h3>Always add to Claude Project</h3><div class="m-sub" id="cl-sub"></div></div><button class="modal-close" onclick="closeAll()">✕</button></div>
+    <div class="modal-body">
+      <div class="switch-row">
+        <div><div class="sw-t">Auto-file every occurrence as a Doc</div><div class="sw-s">On each new summary, Noted files a Google Doc into the project's Drive folder.</div></div>
+        <button class="switch" id="cl-switch" onclick="toggleCl()"></button>
+      </div>
+      <div id="cl-config">
+        <div class="form-row"><label>Target Claude Projects (a series can feed more than one)</label>
+          <div class="proj-pick" id="cl-projlist"></div></div>
+        <div class="field-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Noted files the Doc automatically. Admitting a new Doc to the Project is still a one-time step in claude.ai (batched queue coming later).</div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeAll()">Cancel</button><button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="saveCl()">Save</button></div>
   </div>
 </div>
 
@@ -719,49 +755,14 @@
           <select id="auto-space"><option>Team Knowledge Base</option><option>Engineering</option><option>Product</option></select></div>
         <div class="form-row"><label>Location in space (folder or parent page)</label>
           <select id="auto-loc"><option>Meeting Notes  ›  TSD Standups (folder)</option><option>Meeting Notes (folder)</option><option>Engineering Home (page)</option><option>Top level of space</option></select></div>
-        <div class="form-row"><label>Page format — Claude maps the summary and transcript into this</label>
-          <textarea id="auto-fmt" rows="6"># {{meeting_title}} — {{date}}
-
-## Overview
-2–3 sentence recap from the summary.
-
-## Decisions
-Bulleted, with owner where stated.
-
-## Action items
-- [ ] {{owner}} — {{task}}
-
-## Notable discussion
-Pull relevant detail and quotes from the transcript.</textarea></div>
-        <div class="field-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Only flagged series parse the full transcript, so cost stays low. A new page is created for each occurrence.</div>
+        <div class="form-row"><label>Page template</label>
+          <select id="auto-tmpl-sel" onchange="applyTmpl('auto')"><option>Standard meeting notes</option><option>Decisions &amp; action items</option><option>Executive summary</option><option>Custom…</option></select></div>
+        <div class="form-row"><label>Template body — Gemini fills this each occurrence</label>
+          <textarea id="auto-tmpl" rows="6" class="tmpl-area"></textarea></div>
+        <div class="field-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>A new page per occurrence — Gemini fills this template using each meeting's <strong>transcript and summary</strong>. Use <span class="mono">{{title}}</span>, <span class="mono">{{date}}</span>, and your own headings.</div>
       </div>
     </div>
     <div class="modal-foot"><button class="btn btn-ghost" onclick="closeAll()">Cancel</button><button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="saveAuto()">Save</button></div>
-  </div>
-</div>
-
-<div class="overlay" id="ov-jira" onclick="if(event.target===this)closeAll()">
-  <div class="modal"><div class="modal-head"><div><h3>Draft Jira ticket</h3><div class="m-sub">Claude pulled action items from the summary. Edit then create.</div></div><button class="modal-close" onclick="closeAll()">✕</button></div>
-    <div class="modal-body">
-      <div class="preview-box">
-        <div class="lbl">Project · Type</div><div class="val">TSD · Task</div>
-        <div class="lbl">Summary</div><div class="val" id="jira-ttl"></div>
-        <div class="lbl">Description</div>
-        <div style="color:var(--ink-2)">Auto-filled from the meeting's action items, with assignees mapped from attendees where possible.</div>
-      </div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeAll()">Cancel</button><button class="btn btn-primary" style="width:auto;padding:9px 16px" onclick="toast('Jira ticket TSD-218 created');closeAll()">Create ticket</button></div>
-  </div>
-</div>
-
-<div class="overlay" id="ov-context" onclick="if(event.target===this)closeAll()">
-  <div class="modal" style="max-width:540px"><div class="modal-head"><div><h3>Add context</h3><div class="m-sub" id="ctx-sub"></div></div><button class="modal-close" onclick="closeAll()">✕</button></div>
-    <div class="modal-body">
-      <div class="seg"><button class="seg-btn active" data-seg="min" onclick="ctxSeg('min')">Minutes</button><button class="seg-btn" data-seg="tkt" onclick="ctxSeg('tkt')">Tickets</button><button class="seg-btn" data-seg="file" onclick="ctxSeg('file')">Files</button></div>
-      <input type="file" id="ctx-upload" style="display:none" onchange="onUpload(this)">
-      <div class="ctx-list" id="ctx-list"></div>
-    </div>
-    <div class="modal-foot"><button class="btn btn-ghost" onclick="closeAll()">Cancel</button><button class="btn btn-primary" id="ctx-add-btn" style="width:auto;padding:9px 16px" onclick="confirmContext()" disabled>Add</button></div>
   </div>
 </div>
 
@@ -769,19 +770,28 @@ Pull relevant detail and quotes from the transcript.</textarea></div>
 
 <script>
 /* ---------------- DATA ---------------- */
-const PROJECTS = [
-  {id:'tsd', name:'TSD Workstream', desc:'Daily delivery, blockers, and decisions for the TSD team.', count:6, last:'2h ago'},
-  {id:'q2',  name:'Q2 Planning', desc:'Scope, milestones, and risk tracking for the Q2 roadmap.', count:4, last:'Yesterday'},
-  {id:'rich',name:'Richmond Account', desc:'Client context, renewals, and account-team alignment.', count:3, last:'3 days ago'},
-  {id:'fe',  name:'Frontend Platform', desc:'Design system, component guild, and platform decisions.', count:5, last:'Last week'},
+// Registry: each Claude Project = a label mapped to one Drive folder Noted files Docs into
+const CLAUDE_PROJECTS = [
+  {id:'cp_tsd', label:'TSD Workstream', folder:'Noted › TSD Workstream', filed:8, last:'2h ago'},
+  {id:'cp_q2', label:'Q2 Planning', folder:'Noted › Q2 Planning', filed:4, last:'Yesterday'},
+  {id:'cp_rich', label:'Richmond Account', folder:'Noted › Richmond Account', filed:3, last:'3 days ago'},
+  {id:'cp_fe', label:'Frontend Platform', folder:'Noted › Frontend Platform', filed:5, last:'Last week'},
 ];
-const RECENT = ['tsd','q2','rich'];
-
-// Always-add-to-Confluence config, keyed by meeting SERIES (normalized title).
-// Applies to every future occurrence of that series.
+const RECENT_CP = ['cp_tsd','cp_q2','cp_rich'];
+// What each Claude Project has had filed into its folder (keys: 'min:<id>' | 'tkt:<key>')
+const PROJECT_FILED = {
+  cp_tsd:new Set(['min:m1','min:m2','min:m3','min:m4','min:m5','tkt:TSD-218','tkt:TSD-219','tkt:TSD-204']),
+  cp_q2:new Set(['min:m3','min:m4','min:m1','tkt:TSD-204']),
+  cp_rich:new Set(['min:m5','tkt:RICH-31','tkt:RICH-29']),
+  cp_fe:new Set(['min:m4','min:m1','min:m2','tkt:FE-77','tkt:FE-72']),
+};
+// "Always add to Claude Project", per series (many-to-many → array of project ids)
+const SERIES_CLAUDE = {
+  'TSD Daily Sync':{enabled:true, projects:['cp_tsd','cp_q2']},
+};
 const SERIES_CONF = {
   'TSD Daily Sync':{enabled:true, space:'Team Knowledge Base', loc:'Meeting Notes  ›  TSD Standups (folder)',
-    fmt:'# {{meeting_title}} — {{date}}\n\n## Overview\n## Decisions\n## Action items\n## Notable discussion', lastRun:'Jun 12, 2026 · 6:18 AM'},
+    tmplName:'Standard meeting notes', tmpl:'# {{title}} — {{date}}\n\n## Overview\n\n## Decisions\n\n## Action items\n\n## Notes', lastRun:'Jun 12, 2026 · 6:18 AM'},
 };
 
 // times shown as local; underlying stamps are UTC per the file convention
@@ -860,7 +870,7 @@ const TICKETS = [
 function enterApp(){
   document.getElementById('login').style.display='none';
   document.getElementById('app').classList.add('show');
-  setGreeting(); renderHome(); renderCalendar(); renderMinutes(); renderTickets(); renderProjects();
+  setGreeting(); renderHome(); renderCalendar(); renderMinutes(); renderTickets(); renderProjectContext();
 }
 function signOut(){
   document.getElementById('app').classList.remove('show');
@@ -894,11 +904,11 @@ function renderHome(){
       <span class="pill ${m.status==='past'?'pill-done':'pill-up'}">${m.status==='past'?'Summary ready':'Upcoming'}</span>
     </div>`).join('');
 
-  document.getElementById('home-projects').innerHTML = RECENT.map(id=>{
-    const p=PROJECTS.find(x=>x.id===id);
-    return `<button class="link-row" onclick="openChat('${p.id}')">
+  document.getElementById('home-projects').innerHTML = RECENT_CP.map(id=>{
+    const p=CLAUDE_PROJECTS.find(x=>x.id===id);
+    return `<button class="link-row" onclick="nav('projects')">
       <span class="proj-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a4 4 0 0 1 4 4c0 5-4 4-4 9"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg></span>
-      <span class="proj-body"><span class="proj-name">${p.name}</span><div class="proj-meta">${ctxCounts(p.id).s} summaries · ${ctxCounts(p.id).t} tickets · ${p.last}</div></span>
+      <span class="proj-body"><span class="proj-name">${p.label}</span><div class="proj-meta">${(PROJECT_FILED[p.id]||new Set()).size} docs filed · ${p.last}</div></span>
       <span class="row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></span>
     </button>`;}).join('');
 }
@@ -956,7 +966,7 @@ function renderMinutes(){
   document.getElementById('min-list').innerHTML = past.map(m=>`
     <button class="min-card" onclick="openDetail('${m.id}')">
       <div class="min-stamp"><div class="d">${m.dateLabel}</div>${m.timeLabel}</div>
-      <div class="min-mid"><div class="min-title">${m.title}</div><div class="min-sub">${m.att.split(',').length} attendees · ${m.actions.length} action items${(SERIES_CONF[m.title]&&SERIES_CONF[m.title].enabled)?` · <span class="min-flag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/></svg>Auto-Confluence</span>`:''}</div></div>
+      <div class="min-mid"><div class="min-title">${m.title}</div><div class="min-sub">${m.att.split(',').length} attendees · ${m.actions.length} action items${(SERIES_CONF[m.title]&&SERIES_CONF[m.title].enabled)?` · <span class="min-flag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v5h-5"/></svg>Auto-Confluence</span>`:''}${(SERIES_CLAUDE[m.title]&&SERIES_CLAUDE[m.title].enabled)?` · <span class="min-flag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a4 4 0 0 1 4 4c0 5-4 4-4 9"/><circle cx="12" cy="19" r="1" fill="currentColor" stroke="none"/></svg>Claude Project</span>`:''}</div></div>
       <span class="tag">${m.tag}</span>
       <span class="row-arrow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg></span>
     </button>`).join('');
@@ -980,12 +990,13 @@ function openDetail(id){
         View full transcript</button>
     </div>
     ${renderAutoPanel(m.title)}
+    ${renderClaudePanel(m.title)}
     <div class="summary-doc">
       <h3>Overview</h3><p>${m.overview}</p>
       <h3>Key points</h3><ul>${m.points.map(p=>`<li>${p}</li>`).join('')}</ul>
       <h3>Decisions</h3><ul>${m.decisions.map(d=>`<li>${d}</li>`).join('')}</ul>
       <h3>Action items</h3>
-      <div class="ai-card"><div class="who"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M5 12H2M22 12h-3"/><circle cx="12" cy="12" r="4"/></svg>Extracted by Claude</div>
+      <div class="ai-card"><div class="who"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4M12 18v4M5 12H2M22 12h-3"/><circle cx="12" cy="12" r="4"/></svg>Extracted by Gemini</div>
         ${m.actions.map(a=>`<div class="action-item"><span class="ai-owner">${a.who}</span><span>${a.t}</span></div>`).join('')}
       </div>
     </div>`;
@@ -1009,45 +1020,57 @@ function openTranscript(title,date,time){
 }
 
 /* ---------------- ACTION MODALS ---------------- */
-let addSel=null;
+let addSel=new Set();
 function buildAddList(){
-  document.getElementById('add-list').innerHTML=PROJECTS.map(p=>`
-    <button class="proj-opt" data-pid="${p.id}" onclick="pickProject('${p.id}')">
+  document.getElementById('add-list').innerHTML=CLAUDE_PROJECTS.map(p=>`
+    <button class="proj-opt ${addSel.has(p.id)?'sel':''}" data-pid="${p.id}" onclick="pickProject('${p.id}')">
       <span class="proj-ic" style="width:30px;height:30px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:15px;height:15px"><path d="M12 3a4 4 0 0 1 4 4c0 5-4 4-4 9"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg></span>
-      <span><div style="font-size:13px;font-weight:600">${p.name}</div><div style="font-size:11px;color:var(--muted)">${p.count} items</div></span>
+      <span style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${p.label}</div><div style="font-size:11px;color:var(--muted)" class="mono">${p.folder}</div></span>
       <span class="ck"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></span>
     </button>`).join('');
-  document.getElementById('add-confirm').disabled=true;
+  updateAddBtn();
 }
+function updateAddBtn(){
+  const n=addSel.size, b=document.getElementById('add-confirm');
+  b.disabled=n===0; b.textContent=n?('File to '+n+' project'+(n===1?'':'s')):'File Doc';
+}
+let addItemLabel='';
 function openAddProject(){
-  const m=MEETINGS.find(x=>x.id===detailCurrent); addSel=null;
-  document.getElementById('add-sub').textContent='“'+m.title+'” · '+m.dateLabel;
+  const m=MEETINGS.find(x=>x.id===detailCurrent); addSel=new Set();
+  addItemLabel='“'+m.title+'” · '+m.dateLabel;
+  document.getElementById('add-sub').textContent=addItemLabel;
   buildAddList();
   show('ov-add');
 }
 function pickProject(pid){
-  addSel=pid;
-  document.querySelectorAll('.proj-opt').forEach(o=>o.classList.toggle('sel',o.dataset.pid===pid));
-  document.getElementById('add-confirm').disabled=false;
+  if(addSel.has(pid)) addSel.delete(pid); else addSel.add(pid);
+  document.querySelectorAll('.proj-opt[data-pid]').forEach(o=>o.classList.toggle('sel',addSel.has(o.dataset.pid)));
+  updateAddBtn();
 }
 function confirmAdd(){
-  const p=PROJECTS.find(x=>x.id===addSel); closeAll();
-  toast('Added to '+p.name);
+  const n=addSel.size; closeAll();
+  toast('Filed as a Doc to '+n+' project'+(n===1?'':'s')+' — admit in claude.ai');
 }
-const DEFAULT_FMT='# {{meeting_title}} — {{date}}\n\n## Overview\n2–3 sentence recap from the summary.\n\n## Decisions\nBulleted, with owner where stated.\n\n## Action items\n- [ ] {{owner}} — {{task}}\n\n## Notable discussion\nPull relevant detail and quotes from the transcript.';
+const CONF_TEMPLATES={
+  'Standard meeting notes':'# {{title}} — {{date}}\n\n## Overview\n\n## Decisions\n\n## Action items\n\n## Notes',
+  'Decisions & action items':'# {{title}} — {{date}}\n\n## Decisions\n\n## Action items\n- [ ] {{owner}} — {{task}}',
+  'Executive summary':'# {{title}} — {{date}}\n\n## TL;DR\n\n## Key decisions\n\n## Risks\n\n## Next steps',
+  'Custom…':''
+};
+function applyTmpl(prefix){
+  const sel=document.getElementById(prefix+'-tmpl-sel').value;
+  if(sel!=='Custom…') document.getElementById(prefix+'-tmpl').value=CONF_TEMPLATES[sel]||'';
+}
 function openConfluence(){
   const m=MEETINGS.find(x=>x.id===detailCurrent);
   const c=SERIES_CONF[m.title];
   document.getElementById('conf-ttl').textContent=m.title+' — '+m.dateLabel;
   document.getElementById('conf-space').value=(c&&c.space)||'Team Knowledge Base';
   document.getElementById('conf-loc').value=(c&&c.loc)||'Meeting Notes (folder)';
-  document.getElementById('conf-fmt').value=(c&&c.fmt)||DEFAULT_FMT;
+  const tn=(c&&c.tmplName)||'Standard meeting notes';
+  document.getElementById('conf-tmpl-sel').value=tn;
+  document.getElementById('conf-tmpl').value=(c&&c.tmpl)||CONF_TEMPLATES[tn];
   show('ov-conf');
-}
-function openJira(){
-  const m=MEETINGS.find(x=>x.id===detailCurrent);
-  document.getElementById('jira-ttl').textContent=m.actions[0]?m.actions[0].t:(m.title+' follow-ups');
-  show('ov-jira');
 }
 
 /* ---------------- ALWAYS-ADD-TO-CONFLUENCE ---------------- */
@@ -1082,7 +1105,9 @@ function openAutoConf(){
   document.getElementById('auto-config').classList.toggle('conf-disabled',!autoEnabledDraft);
   if(c.space) document.getElementById('auto-space').value=c.space;
   if(c.loc) document.getElementById('auto-loc').value=c.loc;
-  if(c.fmt) document.getElementById('auto-fmt').value=c.fmt;
+  const tn=c.tmplName||'Standard meeting notes';
+  document.getElementById('auto-tmpl-sel').value=tn;
+  document.getElementById('auto-tmpl').value=c.tmpl||CONF_TEMPLATES[tn];
   show('ov-auto');
 }
 function toggleAuto(){
@@ -1096,11 +1121,68 @@ function saveAuto(){
     enabled:autoEnabledDraft,
     space:document.getElementById('auto-space').value,
     loc:document.getElementById('auto-loc').value,
-    fmt:document.getElementById('auto-fmt').value,
+    tmplName:document.getElementById('auto-tmpl-sel').value,
+    tmpl:document.getElementById('auto-tmpl').value,
     lastRun:(SERIES_CONF[m.title]&&SERIES_CONF[m.title].lastRun)||'not run yet'
   };
   closeAll();
   toast(autoEnabledDraft?('Auto-Confluence on for '+m.title):('Auto-Confluence turned off'));
+  openDetail(detailCurrent); renderMinutes();
+}
+
+/* ---------------- ALWAYS-ADD-TO-CLAUDE-PROJECT ---------------- */
+function renderClaudePanel(title){
+  const c=SERIES_CLAUDE[title];
+  const ic='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a4 4 0 0 1 4 4c0 5-4 4-4 9"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg>';
+  if(c&&c.enabled){
+    const names=c.projects.map(id=>(CLAUDE_PROJECTS.find(p=>p.id===id)||{}).label).filter(Boolean).join(', ');
+    return `<div class="auto-conf on" style="margin-top:-12px">
+      <span class="ac-ic">${ic}</span>
+      <div class="ac-text"><div class="ac-title">Always add to Claude Project <span class="ac-on-badge">On</span></div>
+        <div class="ac-sub">Every “${title}” is filed as a Doc to: ${names}. Admit new Docs once in claude.ai.</div></div>
+      <button class="ac-manage" onclick="openClaudeConf()">Manage</button>
+    </div>`;
+  }
+  return `<div class="auto-conf" style="margin-top:-12px">
+    <span class="ac-ic">${ic}</span>
+    <div class="ac-text"><div class="ac-title">Always add to Claude Project</div>
+      <div class="ac-sub">Auto-file every “${title}” as a Google Doc into a Claude Project's folder.</div></div>
+    <button class="ac-manage" onclick="openClaudeConf()">Set up</button>
+  </div>`;
+}
+let clEnabledDraft=false, clProjDraft=[];
+function openClaudeConf(){
+  const m=MEETINGS.find(x=>x.id===detailCurrent);
+  const c=SERIES_CLAUDE[m.title]||{enabled:false,projects:[]};
+  clEnabledDraft=!!c.enabled; clProjDraft=(c.projects||[]).slice();
+  document.getElementById('cl-sub').textContent='Applies to every “'+m.title+'” meeting (the whole series).';
+  document.getElementById('cl-switch').classList.toggle('on',clEnabledDraft);
+  document.getElementById('cl-config').classList.toggle('conf-disabled',!clEnabledDraft);
+  renderClProjList();
+  show('ov-claude');
+}
+function renderClProjList(){
+  document.getElementById('cl-projlist').innerHTML=CLAUDE_PROJECTS.map(p=>{
+    const sel=clProjDraft.includes(p.id);
+    return `<button class="proj-opt ${sel?'sel':''}" onclick="toggleClProj('${p.id}')">
+      <span><div style="font-size:13px;font-weight:600">${p.label}</div><div style="font-size:11px;color:var(--muted)" class="mono">${p.folder}</div></span>
+      <span class="ck"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></span>
+    </button>`;}).join('');
+}
+function toggleClProj(id){
+  if(clProjDraft.includes(id)) clProjDraft=clProjDraft.filter(x=>x!==id); else clProjDraft.push(id);
+  renderClProjList();
+}
+function toggleCl(){
+  clEnabledDraft=!clEnabledDraft;
+  document.getElementById('cl-switch').classList.toggle('on',clEnabledDraft);
+  document.getElementById('cl-config').classList.toggle('conf-disabled',!clEnabledDraft);
+}
+function saveCl(){
+  const m=MEETINGS.find(x=>x.id===detailCurrent);
+  SERIES_CLAUDE[m.title]={enabled:clEnabledDraft, projects:clProjDraft.slice()};
+  closeAll();
+  toast(clEnabledDraft?('Auto-add to Claude Project on for '+m.title):('Auto-add to Claude Project off'));
   openDetail(detailCurrent); renderMinutes();
 }
 
@@ -1167,163 +1249,83 @@ function openTicket(key){
     </div>`;
 }
 function openTicketAddProject(){
-  const t=TICKETS.find(x=>x.key===currentTicket); addSel=null;
-  document.getElementById('add-sub').textContent=t.key+' · '+t.title;
+  const t=TICKETS.find(x=>x.key===currentTicket); addSel=new Set();
+  addItemLabel=t.key+' · '+t.title;
+  document.getElementById('add-sub').textContent=addItemLabel;
   buildAddList();
   show('ov-add');
 }
 
-/* ---------------- PROJECTS + CHAT ---------------- */
-// What each project currently holds as context: meeting summaries + tickets + files
-const PROJ_CTX={
-  tsd:{sum:['m1','m2','m3'], tkt:['TSD-204'], file:[]},
-  q2:{sum:['m3'], tkt:[], file:['f2']},
-  rich:{sum:['m5'], tkt:['RICH-31'], file:[]},
-  fe:{sum:['m4'], tkt:['FE-77'], file:['f4']},
-};
-let currentProject=null;
-function ctxCounts(pid){const c=PROJ_CTX[pid]||{sum:[],tkt:[],file:[]};return {s:c.sum.length,t:c.tkt.length,f:(c.file||[]).length};}
-function ctxLabel(pid){
-  const {s,t,f}=ctxCounts(pid);
-  const parts=[];
-  if(s) parts.push(s+' summar'+(s===1?'y':'ies'));
-  if(t) parts.push(t+' ticket'+(t===1?'':'s'));
-  if(f) parts.push(f+' file'+(f===1?'':'s'));
-  return (parts.join(' · ')||'No items')+' in context';
-}
-function renderProjects(){
-  document.getElementById('proj-grid').innerHTML=PROJECTS.map(p=>{
-    const {s,t,f}=ctxCounts(p.id);
-    return `<button class="proj-card" onclick="openChat('${p.id}')">
-      <span class="pc-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a4 4 0 0 1 4 4c0 5-4 4-4 9"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg></span>
-      <span style="flex:1"><div class="pc-name">${p.name}</div><div class="pc-desc">${p.desc}</div>
-        <div class="pc-foot"><span>${s} summaries</span><span>${t} tickets</span><span>${f} files</span><span>· ${p.last}</span></div></span>
-    </button>`;}).join('');
-}
-const CHATS={
-  tsd:[{r:'ai',t:'I have the last <strong>6 TSD Daily Sync</strong> summaries loaded. Ask me about blockers, decisions, or what changed across standups.',src:['6 summaries']},
-       {r:'user',t:'What\u2019s still blocking the release?'},
-       {r:'ai',t:'One item: the <strong>recurring-event calendar-sync edge case</strong>. The token-refresh blocker was resolved and shipped to staging on Jun 12, but the release was held until the sync fix lands. Priya is spiking it.',src:['Jun 12 sync','Jun 11 sync']}],
-};
-let chatMsgs=[];
-function openChat(pid){
-  const p=PROJECTS.find(x=>x.id===pid); currentProject=pid;
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('show'));
-  document.getElementById('view-chat').classList.add('show');
-  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  document.querySelector('.nav-item[data-nav="projects"]').classList.add('active');
-  document.getElementById('chat-title').textContent=p.name;
-  document.getElementById('chat-ctx').textContent=ctxLabel(pid);
-  const {s}=ctxCounts(pid);
-  chatMsgs=(CHATS[pid]||[{r:'ai',t:'I have the '+s+' meeting summaries for <strong>'+p.name+'</strong> loaded. What would you like to know?',src:[s+' summaries']}]).slice();
-  renderChat();
+/* ---------------- PROJECT CONTEXT (Claude Project registry) ---------------- */
+function renderProjectContext(){
+  const ic='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a4 4 0 0 1 4 4c0 5-4 4-4 9"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/></svg>';
+  document.getElementById('cp-list').innerHTML=CLAUDE_PROJECTS.map(p=>`
+    <button class="cp-card" onclick="openProjectAdd('${p.id}')">
+      <span class="pc-ic">${ic}</span>
+      <div class="cp-mid">
+        <div class="cp-name">${p.label}</div>
+        <div class="cp-folder mono"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="vertical-align:-2px"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg> ${p.folder}</div>
+        <div class="cp-stat mono">${(PROJECT_FILED[p.id]||new Set()).size} docs filed · last ${p.last}</div>
+      </div>
+      <div class="cp-actions">
+        <span class="ac-manage"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:3px"><path d="M12 5v14M5 12h14"/></svg>Add context</span>
+      </div>
+    </button>`).join('');
 }
 
-/* ---------------- ADD CONTEXT (from inside a project) ---------------- */
-let ctxSegState='min', ctxSelected=new Set();
-function openContext(){
-  ctxSegState='min'; ctxSelected=new Set();
-  const p=PROJECTS.find(x=>x.id===currentProject);
-  document.getElementById('ctx-sub').textContent='Pull meeting summaries and tickets into '+p.name+'.';
-  document.querySelectorAll('#ov-context .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.seg==='min'));
-  renderCtxList(); updateCtxBtn(); show('ov-context');
+/* ---------------- ADD ITEMS TO A PROJECT CONTEXT ---------------- */
+let pjCurrent=null, pjSeg_='min', pjSel=new Set();
+function openProjectAdd(pid){
+  pjCurrent=pid; pjSeg_='min'; pjSel=new Set();
+  const p=CLAUDE_PROJECTS.find(x=>x.id===pid);
+  document.getElementById('pj-sub').textContent=p.label+'  ·  '+p.folder;
+  document.querySelectorAll('#ov-projadd .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.seg==='min'));
+  renderPjList(); updatePjBtn(); show('ov-projadd');
 }
-function ctxSeg(seg){
-  ctxSegState=seg;
-  document.querySelectorAll('#ov-context .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.seg===seg));
-  renderCtxList();
+function pjSeg(seg){
+  pjSeg_=seg;
+  document.querySelectorAll('#ov-projadd .seg-btn').forEach(b=>b.classList.toggle('active',b.dataset.seg===seg));
+  renderPjList();
 }
-function renderCtxList(){
-  const c=PROJ_CTX[currentProject]||{sum:[],tkt:[],file:[]};
+function renderPjList(){
+  const filed=PROJECT_FILED[pjCurrent]||new Set();
   const docIc='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="width:15px;height:15px"><path d="M6 3h8l4 4v14H6z"/><path d="M8 11h8M8 15h6"/></svg>';
   let html='';
-  if(ctxSegState==='min'){
+  if(pjSeg_==='min'){
     html=MEETINGS.filter(m=>m.status==='past').map(m=>{
-      const added=c.sum.includes(m.id), key='min:'+m.id, sel=ctxSelected.has(key);
-      return `<button class="proj-opt ${added?'added':''} ${sel?'sel':''}" onclick="toggleCtx('${key}')">
+      const key='min:'+m.id, done=filed.has(key), sel=pjSel.has(key);
+      return `<button class="proj-opt ${done?'added':''} ${sel?'sel':''}" onclick="togglePj('${key}')">
         <span class="proj-ic" style="width:30px;height:30px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted)">${docIc}</span>
         <span style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${m.title}</div><div style="font-size:11px;color:var(--muted)" class="mono">${m.dateLabel}</div></span>
-        ${added?'<span class="ctx-added">In context</span>':'<span class="ck"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></span>'}
-      </button>`;}).join('');
-  }else if(ctxSegState==='tkt'){
-    html=TICKETS.map(t=>{
-      const added=c.tkt.includes(t.key), key='tkt:'+t.key, sel=ctxSelected.has(key);
-      return `<button class="proj-opt ${added?'added':''} ${sel?'sel':''}" onclick="toggleCtx('${key}')">
-        <span class="tk-type ${TK_TYPE[t.type]}" style="width:26px;height:26px">${tkTypeIcon(t.type)}</span>
-        <span style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${t.title}</div><div style="font-size:11px;color:var(--muted)"><span class="mono">${t.key}</span> · ${t.statusLabel}</div></span>
-        ${added?'<span class="ctx-added">In context</span>':'<span class="ck"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></span>'}
+        ${done?'<span class="ctx-added">Filed</span>':'<span class="ck"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></span>'}
       </button>`;}).join('');
   }else{
-    const fileIc='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" style="width:15px;height:15px"><path d="M13 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9z"/><path d="M13 3v6h6"/></svg>';
-    const actions=`<div class="file-actions">
-      <button class="file-btn" onclick="document.getElementById('ctx-upload').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>Upload file</button>
-      <button class="file-btn" onclick="browseDrive()"><svg viewBox="0 0 48 48"><path fill="#1976D2" d="m32 28-8 14h16z"/><path fill="#4CAF50" d="M24 6 8 34h16l8-14z" transform="translate(0 0)"/><path fill="#FFC107" d="M40 34 28 14h-8l12 20z"/></svg>Browse Google Drive</button>
-    </div>
-    <div class="file-hint"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>Files you add are saved to Google Drive and parsed for context.</div>`;
-    const allFiles=[...uploadedFiles,...DRIVE_FILES];
-    const rows=allFiles.map(f=>{
-      const added=c.file.includes(f.id), key='file:'+f.id, sel=ctxSelected.has(key);
-      return `<button class="proj-opt ${added?'added':''} ${sel?'sel':''}" onclick="toggleCtx('${key}')">
-        <span class="proj-ic" style="width:30px;height:30px;background:var(--surface-2);border:1px solid var(--border);color:var(--muted)">${fileIc}</span>
-        <span style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${f.name}</div><div style="font-size:11px;color:${f.isNew?'var(--accent)':'var(--muted)'}">${f.isNew?'New · saves to Drive':f.meta}</div></span>
-        ${added?'<span class="ctx-added">In context</span>':'<span class="ck"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></span>'}
+    html=TICKETS.map(t=>{
+      const key='tkt:'+t.key, done=filed.has(key), sel=pjSel.has(key);
+      return `<button class="proj-opt ${done?'added':''} ${sel?'sel':''}" onclick="togglePj('${key}')">
+        <span class="tk-type ${TK_TYPE[t.type]}" style="width:26px;height:26px">${tkTypeIcon(t.type)}</span>
+        <span style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${t.title}</div><div style="font-size:11px;color:var(--muted)"><span class="mono">${t.key}</span> · ${t.statusLabel}</div></span>
+        ${done?'<span class="ctx-added">Filed</span>':'<span class="ck"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5L20 7"/></svg></span>'}
       </button>`;}).join('');
-    html=actions+'<div class="ctx-sublabel">From your Google Drive</div>'+rows;
   }
-  document.getElementById('ctx-list').innerHTML=html;
+  document.getElementById('pj-list').innerHTML=html;
 }
-const DRIVE_FILES=[
-  {id:'f1', name:'TSD Architecture Notes.pdf', meta:'PDF · 240 KB'},
-  {id:'f2', name:'Q2 Roadmap.docx', meta:'Doc · 88 KB'},
-  {id:'f3', name:'Richmond MSA.pdf', meta:'PDF · 1.2 MB'},
-  {id:'f4', name:'Design Tokens Spec.md', meta:'Markdown · 12 KB'},
-];
-let uploadedFiles=[];
-function onUpload(input){
-  if(!input.files||!input.files.length) return;
-  const name=input.files[0].name, id='up'+Date.now();
-  uploadedFiles.unshift({id,name,isNew:true});
-  ctxSelected.add('file:'+id);
-  input.value='';
-  renderCtxList(); updateCtxBtn();
-  toast('“'+name+'” will be saved to Google Drive');
+function togglePj(key){
+  if(pjSel.has(key)) pjSel.delete(key); else pjSel.add(key);
+  renderPjList(); updatePjBtn();
 }
-function browseDrive(){ toast('Opening Google Drive picker…'); }
-function toggleCtx(key){
-  if(ctxSelected.has(key)) ctxSelected.delete(key); else ctxSelected.add(key);
-  renderCtxList(); updateCtxBtn();
+function updatePjBtn(){
+  document.getElementById('pj-confirm').disabled=pjSel.size===0;
 }
-function updateCtxBtn(){
-  const n=ctxSelected.size, btn=document.getElementById('ctx-add-btn');
-  btn.disabled=n===0; btn.textContent=n?('Add '+n+' item'+(n===1?'':'s')):'Add';
+function confirmPj(){
+  const set=PROJECT_FILED[pjCurrent]||(PROJECT_FILED[pjCurrent]=new Set());
+  const n=pjSel.size; pjSel.forEach(k=>set.add(k));
+  const p=CLAUDE_PROJECTS.find(x=>x.id===pjCurrent);
+  closeAll();
+  renderProjectContext(); renderHome();
+  toast('Filed '+n+' item'+(n===1?'':'s')+' to '+p.label+' — admit in claude.ai');
 }
-function confirmContext(){
-  const c=PROJ_CTX[currentProject]||(PROJ_CTX[currentProject]={sum:[],tkt:[],file:[]});
-  if(!c.file) c.file=[];
-  ctxSelected.forEach(k=>{const i=k.indexOf(':');const type=k.slice(0,i),id=k.slice(i+1);
-    if(type==='min'&&!c.sum.includes(id))c.sum.push(id);
-    if(type==='tkt'&&!c.tkt.includes(id))c.tkt.push(id);
-    if(type==='file'&&!c.file.includes(id))c.file.push(id);});
-  const n=ctxSelected.size; closeAll();
-  document.getElementById('chat-ctx').textContent=ctxLabel(currentProject);
-  renderProjects(); renderHome();
-  toast('Added '+n+' item'+(n===1?'':'s')+' to context');
-}
-function renderChat(){
-  document.getElementById('chat-inner').innerHTML=chatMsgs.map(m=>`
-    <div class="msg ${m.r}">
-      <span class="who-av">${m.r==='user'?'JL':'C'}</span>
-      <div class="bubble">${m.t}${m.src?'<div>'+m.src.map(s=>`<span class="src"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/></svg>${s}</span>`).join('')+'</div>':''}</div>
-    </div>`).join('');
-  const b=document.querySelector('.chat-body'); if(b) b.scrollTop=b.scrollHeight;
-}
-function growInput(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
-function chatKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();}}
-function sendChat(){
-  const el=document.getElementById('chat-input'); const v=el.value.trim(); if(!v)return;
-  chatMsgs.push({r:'user',t:v.replace(/</g,'&lt;')}); el.value=''; el.style.height='auto'; renderChat();
-  setTimeout(()=>{chatMsgs.push({r:'ai',t:'Here\u2019s what the meeting summaries say about that \u2014 in the live product this is Claude answering over the project\u2019s context. <em style="color:var(--muted)">(prototype response)</em>',src:['Project context']});renderChat();},480);
-}
+
 
 /* ---------------- HELPERS ---------------- */
 function show(id){closeAll();document.getElementById(id).classList.add('show');}
