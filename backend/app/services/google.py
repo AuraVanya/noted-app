@@ -184,6 +184,178 @@ async def list_drive_folder(
 # clearer to keep it next to the FastAPI handler than to wrap it here.
 
 
+# --- Drive write (needs the drive.file scope) ---------------------------------
+
+
+class DriveAccessError(RuntimeError):
+    """Drive returned 4xx for a write operation. Most commonly a missing
+    scope on the user's token (they need to re-consent) or a stale
+    folder id."""
+
+
+def _ensure_drive_ok(resp: httpx.Response, action: str) -> None:
+    if resp.status_code in (200, 201):
+        return
+    body_snip = resp.text[:200] if resp.text else ""
+    if resp.status_code == 401:
+        raise DriveAccessError(
+            f"{action}: Drive returned 401 (token invalid or scope missing — re-consent required)"
+        )
+    if resp.status_code == 403:
+        raise DriveAccessError(
+            f"{action}: Drive returned 403 (insufficient scope; sign out and back in to grant Drive write)"
+        )
+    if resp.status_code == 404:
+        raise DriveAccessError(f"{action}: Drive returned 404 (folder/file not found)")
+    raise DriveAccessError(f"{action}: Drive returned {resp.status_code} {body_snip}")
+
+
+async def create_drive_folder(
+    token: str, name: str, parent_id: str | None = None
+) -> dict[str, Any]:
+    """Create a new Drive folder. Returns `{id, name, webViewLink}`."""
+    headers = {"Authorization": f"Bearer {token}"}
+    body: dict[str, Any] = {
+        "name": name,
+        "mimeType": "application/vnd.google-apps.folder",
+    }
+    if parent_id:
+        body["parents"] = [parent_id]
+    params = {
+        "fields": "id, name, webViewLink",
+        "supportsAllDrives": "true",
+    }
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.post(DRIVE_FILES_URL, headers=headers, json=body, params=params)
+    _ensure_drive_ok(resp, "create_drive_folder")
+    return resp.json()
+
+
+async def get_drive_folder(token: str, folder_id: str) -> dict[str, Any]:
+    """Resolve a folder id to `{id, name, webViewLink, mimeType}`."""
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {
+        "fields": "id, name, webViewLink, mimeType",
+        "supportsAllDrives": "true",
+    }
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(
+            f"{DRIVE_FILES_URL}/{folder_id}", headers=headers, params=params
+        )
+    _ensure_drive_ok(resp, "get_drive_folder")
+    payload = resp.json()
+    if payload.get("mimeType") != "application/vnd.google-apps.folder":
+        raise DriveAccessError(
+            f"get_drive_folder: {folder_id} is not a folder ({payload.get('mimeType')})"
+        )
+    return payload
+
+
+async def trash_drive_file(token: str, file_id: str) -> None:
+    """
+    Move a Drive file (or folder) to trash. We prefer trash over outright
+    delete so the user can restore from Drive's trash UI within ~30 days
+    if they regret the action.
+
+    Limited by the drive.file scope to files Noted created (folders made
+    via the Create-new-folder path) or that the user explicitly shared with
+    our OAuth client (the Use-existing-folder path may or may not qualify).
+    Caller should treat 403 as "we can't touch this; tell the user."
+    """
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+    params = {"supportsAllDrives": "true"}
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.patch(
+            f"{DRIVE_FILES_URL}/{file_id}",
+            headers=headers,
+            params=params,
+            json={"trashed": True},
+        )
+    _ensure_drive_ok(resp, "trash_drive_file")
+
+
+async def create_drive_doc(
+    token: str,
+    name: str,
+    parent_folder_id: str,
+    body_text: str,
+) -> dict[str, Any]:
+    """
+    Create a Google Doc inside `parent_folder_id` with the given text body.
+
+    Implementation uses Drive's `multipart` upload type: metadata + a
+    text/plain body part. Setting `mimeType = application/vnd.google-apps
+    .document` on the metadata makes Drive auto-convert the upload into a
+    native Google Doc on the way in (much simpler than calling the Docs
+    API afterwards to insert text).
+
+    Returns `{id, name, webViewLink}`.
+    """
+    import json
+    import secrets
+
+    boundary = "noted-" + secrets.token_hex(16)
+    metadata = {
+        "name": name,
+        "parents": [parent_folder_id],
+        "mimeType": "application/vnd.google-apps.document",
+    }
+    body = (
+        f"--{boundary}\r\n"
+        f"Content-Type: application/json; charset=UTF-8\r\n\r\n"
+        f"{json.dumps(metadata)}\r\n"
+        f"--{boundary}\r\n"
+        f"Content-Type: text/plain; charset=UTF-8\r\n\r\n"
+        f"{body_text}\r\n"
+        f"--{boundary}--"
+    ).encode("utf-8")
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": f"multipart/related; boundary={boundary}",
+    }
+    params = {
+        "uploadType": "multipart",
+        "fields": "id, name, webViewLink",
+        "supportsAllDrives": "true",
+    }
+    upload_url = "https://www.googleapis.com/upload/drive/v3/files"
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(upload_url, headers=headers, params=params, content=body)
+    _ensure_drive_ok(resp, "create_drive_doc")
+    return resp.json()
+
+
+async def search_drive_folders(
+    token: str, query: str, limit: int = 20
+) -> list[dict[str, Any]]:
+    """Search the user's Drive for folders whose name contains `query`."""
+    if not query.strip():
+        return []
+    # Escape single quotes to keep the q string sane
+    safe_q = query.replace("'", "\\'")
+    headers = {"Authorization": f"Bearer {token}"}
+    params = {
+        "q": (
+            "mimeType = 'application/vnd.google-apps.folder' "
+            f"and name contains '{safe_q}' and trashed = false"
+        ),
+        "fields": "files(id, name, webViewLink)",
+        "pageSize": str(limit),
+        "supportsAllDrives": "true",
+        "includeItemsFromAllDrives": "true",
+        "orderBy": "modifiedTime desc",
+    }
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        resp = await client.get(DRIVE_FILES_URL, headers=headers, params=params)
+    _ensure_drive_ok(resp, "search_drive_folders")
+    return resp.json().get("files", [])
+
+
 # --- Calendar -----------------------------------------------------------------
 
 

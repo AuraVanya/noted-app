@@ -26,7 +26,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
-from ..models import Meeting, MeetingSeries
+from ..models import Meeting, MeetingSeries, SeriesContextLink
 from .filename import ParsedFilename, parse_filename
 from .google import (
     GoogleAuthError,
@@ -52,6 +52,9 @@ class SyncSummary:
     meetings_upserted: int = 0
     meetings_skipped: int = 0
     calendar_matched: int = 0
+    auto_filed: int = 0
+    auto_skipped: int = 0
+    auto_failed: int = 0
     errors: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict[str, Any]:
@@ -61,6 +64,9 @@ class SyncSummary:
             "meetings_upserted": self.meetings_upserted,
             "meetings_skipped": self.meetings_skipped,
             "calendar_matched": self.calendar_matched,
+            "auto_filed": self.auto_filed,
+            "auto_skipped": self.auto_skipped,
+            "auto_failed": self.auto_failed,
             "errors": self.errors,
         }
 
@@ -302,4 +308,83 @@ async def sync_user(session: AsyncSession, user_id: int) -> SyncSummary:
         summary.errors.append(f"calendar match: {exc}")
 
     await session.commit()
+
+    # 6) Auto-file pass — for any series with enabled context links, file each
+    # of that series's meetings (with a summary_file_id) into each linked
+    # Project Context. The handoff service's unique constraint on
+    # `(project_context_id, item_type, item_ref)` makes this naturally
+    # idempotent — already-filed (meeting, context) pairs short-circuit.
+    try:
+        await _auto_file_flagged_series(session, user_id, meetings_by_key, summary)
+    except Exception as exc:  # noqa: BLE001
+        summary.errors.append(f"auto-file: {exc}")
+
     return summary
+
+
+async def _auto_file_flagged_series(
+    session: AsyncSession,
+    user_id: int,
+    meetings_by_key: dict[_OccKey, Meeting],
+    summary: SyncSummary,
+) -> None:
+    """Walk this run's meetings and file each one into any enabled Project
+    Context link for its series. Per-pair failures don't abort the pass."""
+    if not meetings_by_key:
+        return
+
+    # Local import — `services.sync` is imported by the scheduler at boot
+    # time, and `services.handoff` pulls in extraction + drive write helpers
+    # that we don't need just to *read* enabled links. Lazy import keeps the
+    # boot path lean and avoids any circular reference.
+    from .handoff import file_meeting_to_context
+
+    series_ids = {m.series_id for m in meetings_by_key.values()}
+    if not series_ids:
+        return
+
+    # One query covers every enabled link across every series touched
+    links_q = await session.execute(
+        select(SeriesContextLink).where(
+            SeriesContextLink.series_id.in_(series_ids),
+            SeriesContextLink.enabled.is_(True),
+        )
+    )
+    links_by_series: dict[int, list[int]] = {}
+    for link in links_q.scalars().all():
+        links_by_series.setdefault(link.series_id, []).append(link.project_context_id)
+
+    if not links_by_series:
+        return
+
+    for meeting in meetings_by_key.values():
+        if not meeting.summary_file_id:
+            # Auto-file needs a summary PDF to extract from
+            continue
+        target_ctx_ids = links_by_series.get(meeting.series_id, [])
+        for ctx_id in target_ctx_ids:
+            try:
+                result = await file_meeting_to_context(
+                    session,
+                    meeting_id=meeting.id,
+                    project_context_id=ctx_id,
+                    user_id=user_id,
+                    trigger="auto",
+                )
+            except Exception as exc:  # noqa: BLE001 — last-ditch
+                summary.auto_failed += 1
+                summary.errors.append(
+                    f"auto-file meeting_id={meeting.id} ctx={ctx_id}: {exc}"
+                )
+                continue
+
+            if result.status == "success":
+                summary.auto_filed += 1
+            elif result.status == "skipped":
+                summary.auto_skipped += 1
+            else:  # failed
+                summary.auto_failed += 1
+                if result.error:
+                    summary.errors.append(
+                        f"auto-file meeting_id={meeting.id} ctx={ctx_id}: {result.error}"
+                    )

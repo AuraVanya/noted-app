@@ -1,12 +1,16 @@
 """
 Lazy summary-PDF text extraction.
 
-CLAUDE.md domain rule 4: feed *summaries* (not transcripts) to chat. So
-this service only extracts summary text. Transcripts stay display-only,
-served as PDFs through the signed-URL file proxy.
+This service only extracts the *summary* PDF — never the transcript.
+Transcripts stay display-only, served as PDFs through the signed-URL
+file proxy.
 
-We cache on `meetings.summary_text` so the second request is free, and
-Phase 4's chat path inherits a populated cache.
+Callers (CLAUDE.md rule 4 + 6):
+- Phase 4 Claude-Project Doc handoff: turns a summary into a Google Doc
+  body filed into the project's mapped Drive folder.
+- Phase 6 Confluence page generation: feeds Gemini the summary text.
+
+We cache on `meetings.summary_text` so the second caller is free.
 """
 
 from __future__ import annotations

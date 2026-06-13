@@ -23,7 +23,7 @@ const NAV_ITEMS: NavEntry[] = [
   { to: "/calendar", label: "Calendar", icon: CalendarIcon },
   { to: "/minutes", label: "Minutes", icon: FileText },
   { to: "/tickets", label: "Tickets", icon: Ticket },
-  { to: "/projects", label: "Projects", icon: Lightbulb },
+  { to: "/project-context", label: "Project Context", icon: Lightbulb },
 ];
 
 interface SidebarProps {

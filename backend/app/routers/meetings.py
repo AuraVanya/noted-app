@@ -16,7 +16,7 @@ from sqlalchemy.orm import joinedload
 
 from ..db import get_session
 from ..deps import current_user
-from ..models import Meeting, User
+from ..models import Meeting, SeriesContextLink, User
 from ..services.file_urls import sign_file_url
 
 
@@ -57,6 +57,15 @@ async def list_meetings(
     )
     meetings = result.scalars().all()
 
+    # One query to find every series with at least one *enabled* link.
+    # Drives the seriesHasAutoFile flag without an N+1 over meetings.
+    flagged_q = await session.execute(
+        select(SeriesContextLink.series_id)
+        .where(SeriesContextLink.enabled.is_(True))
+        .distinct()
+    )
+    flagged_series: set[int] = {row[0] for row in flagged_q.all()}
+
     out: list[dict[str, Any]] = []
     for m in meetings:
         attendees = _serialize_attendees(m.attendees)
@@ -70,6 +79,7 @@ async def list_meetings(
             "attendeeCount": len(attendees),
             "hasSummary": m.summary_file_id is not None,
             "hasTranscript": m.transcript_file_id is not None,
+            "seriesHasAutoFile": m.series_id in flagged_series,
         })
     return out
 
@@ -84,8 +94,8 @@ async def get_meeting(
     Detail view. Returns metadata + signed URLs for the summary and
     transcript PDFs. Per spec §7 and CLAUDE.md rule 5, the UI embeds the
     original summary PDF — we do *not* extract text here. Extraction
-    (`services/extraction.py`) is preserved for Phase 4 chat / Confluence
-    paths, which need the plain text for Claude.
+    (`services/extraction.py`) is reused by the Phase 4 Claude-Project
+    Doc handoff and the Phase 6 Confluence generation path.
     """
     result = await session.execute(
         select(Meeting)

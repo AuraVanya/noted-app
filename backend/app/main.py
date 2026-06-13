@@ -6,7 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from .config import get_settings
-from .routers import auth_atlassian, auth_google, calendar, files, me, meetings, sync
+from .routers import (
+    auth_atlassian,
+    auth_google,
+    calendar,
+    files,
+    me,
+    meetings,
+    project_contexts,
+    series,
+    sync,
+    tickets,
+)
 from .scheduler import build_scheduler
 
 
@@ -58,6 +69,10 @@ def create_app() -> FastAPI:
     app.include_router(files.router)
     app.include_router(meetings.router)
     app.include_router(calendar.router)
+    app.include_router(project_contexts.router)
+    app.include_router(project_contexts.drive_router)
+    app.include_router(series.router)
+    app.include_router(tickets.router)
 
     @app.get("/api/health", tags=["health"])
     async def health() -> dict[str, str]:

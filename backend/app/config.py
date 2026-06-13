@@ -33,6 +33,27 @@ class Settings(BaseSettings):
         "profile",
         "https://www.googleapis.com/auth/drive.readonly",
         "https://www.googleapis.com/auth/calendar.readonly",
+        # Phase 4: write Docs into project context folders. Least-privilege
+        # write scope — only grants access to files Noted itself creates.
+        # Existing user sessions lack this scope; they re-consent on next
+        # sign-in.
+        "https://www.googleapis.com/auth/drive.file",
+    )
+
+    # --- Atlassian (Phase 5 Jira read + Phase 6 Confluence read/write) ---
+    atlassian_client_id: str = ""
+    atlassian_client_secret: str = ""
+    atlassian_redirect_uri: str = "http://localhost:8000/api/auth/atlassian/callback"
+    atlassian_scopes: tuple[str, ...] = (
+        # Jira read (Phase 5)
+        "read:jira-work",
+        "read:jira-user",
+        # Confluence read/write (Phase 6 — bundled now to avoid a re-consent)
+        "read:confluence-content.all",
+        "write:confluence-content",
+        "read:confluence-space.summary",
+        # Refresh tokens
+        "offline_access",
     )
 
     # Phase 2 — Drive folder IDs for ingestion

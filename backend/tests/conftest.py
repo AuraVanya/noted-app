@@ -27,6 +27,10 @@ os.environ["SESSION_SECRET"] = "test-session-secret-test-session-secret"
 os.environ["TOKEN_ENC_KEY"] = "zmWl5eR8tQ3OTbq4nQO1V7pX8h_VqzN1d2J3sV0kZ9I="
 os.environ["GOOGLE_CLIENT_ID"] = "test-client-id"
 os.environ["GOOGLE_CLIENT_SECRET"] = "test-client-secret"
+# Empty Atlassian creds — tests that need them stub the network layer; the
+# "unconfigured" test relies on this being empty.
+os.environ["ATLASSIAN_CLIENT_ID"] = ""
+os.environ["ATLASSIAN_CLIENT_SECRET"] = ""
 os.environ["FILE_URL_SECRET"] = "test-file-url-secret-test-file-url-secret"
 # Scheduler off by default for tests — the few tests that exercise it set
 # this back to true via monkeypatch.

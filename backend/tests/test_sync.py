@@ -290,3 +290,208 @@ async def test_drive_list_failure_logs_does_not_abort(db_session, user, fake_goo
     # No data, but the run didn't crash
     assert result.meetings_upserted == 0
     assert any("drive list" in e for e in result.errors)
+
+
+# --- Slice C: auto-file pass -------------------------------------------------
+
+
+@pytest.fixture
+async def project_context_and_link(db_session, user):
+    """Register a Project Context and link a freshly-ingested series to it.
+    Returned dict lets the test know which IDs to assert against."""
+    from app.models import ProjectContext
+
+    ctx = ProjectContext(
+        label="Auto Context",
+        drive_folder_id="folder-auto",
+        drive_folder_url="https://drive.google.com/drive/folders/folder-auto",
+        created_by_user_id=user.id,
+    )
+    db_session.add(ctx)
+    await db_session.commit()
+    return {"ctx_id": ctx.id}
+
+
+@pytest.mark.asyncio
+async def test_auto_file_calls_handoff_for_flagged_series(
+    db_session, user, fake_google, project_context_and_link, monkeypatch
+):
+    """If a series has an enabled link, every meeting of that series should
+    be filed via the handoff service."""
+    from app.models import SeriesContextLink
+    from app.services import handoff as handoff_module
+    from app.services.handoff import FilingResult
+
+    fake_google.summary_files = [
+        _drive_file("file-sum-1", "Standup-summary-2026-06-12T09-00-00.000Z.pdf"),
+    ]
+    fake_google.transcript_files = []
+
+    handoff_calls: list[dict] = []
+
+    async def fake_file(
+        session, *, meeting_id, project_context_id, user_id, trigger="manual"
+    ):
+        handoff_calls.append(
+            {
+                "meeting_id": meeting_id,
+                "ctx_id": project_context_id,
+                "user_id": user_id,
+                "trigger": trigger,
+            }
+        )
+        return FilingResult(
+            item_type="meeting",
+            item_ref=str(meeting_id),
+            status="success",
+            drive_doc_id=f"doc-{meeting_id}",
+            drive_doc_url=f"https://docs.google.com/document/d/doc-{meeting_id}/edit",
+        )
+
+    monkeypatch.setattr(handoff_module, "file_meeting_to_context", fake_file)
+
+    # First sync ingests the meeting + series. No link yet → no auto-file.
+    result = await sync_user(db_session, user.id)
+    assert result.auto_filed == 0
+    assert handoff_calls == []
+
+    # Enable a link for this series.
+    series = (await db_session.execute(select(MeetingSeries))).scalar_one()
+    db_session.add(
+        SeriesContextLink(
+            series_id=series.id,
+            project_context_id=project_context_and_link["ctx_id"],
+            enabled=True,
+            created_by_user_id=user.id,
+        )
+    )
+    await db_session.commit()
+
+    # Re-sync → meeting now flagged, should auto-file.
+    result = await sync_user(db_session, user.id)
+    assert result.auto_filed == 1
+    assert len(handoff_calls) == 1
+    assert handoff_calls[0]["trigger"] == "auto"
+    assert handoff_calls[0]["ctx_id"] == project_context_and_link["ctx_id"]
+
+
+@pytest.mark.asyncio
+async def test_auto_file_skipped_does_not_recount(
+    db_session, user, fake_google, project_context_and_link, monkeypatch
+):
+    """When the handoff returns 'skipped' (already filed), auto_skipped goes
+    up but auto_filed does not."""
+    from app.models import SeriesContextLink
+    from app.services import handoff as handoff_module
+    from app.services.handoff import FilingResult
+
+    fake_google.summary_files = [
+        _drive_file("s", "Standup-summary-2026-06-12T09-00-00.000Z.pdf"),
+    ]
+
+    async def fake_file_skipped(
+        session, *, meeting_id, project_context_id, user_id, trigger="manual"
+    ):
+        return FilingResult(
+            item_type="meeting",
+            item_ref=str(meeting_id),
+            status="skipped",
+            drive_doc_id="existing-doc",
+            drive_doc_url="https://docs.google.com/document/d/existing-doc/edit",
+        )
+
+    monkeypatch.setattr(handoff_module, "file_meeting_to_context", fake_file_skipped)
+
+    await sync_user(db_session, user.id)
+    series = (await db_session.execute(select(MeetingSeries))).scalar_one()
+    db_session.add(
+        SeriesContextLink(
+            series_id=series.id,
+            project_context_id=project_context_and_link["ctx_id"],
+            enabled=True,
+            created_by_user_id=user.id,
+        )
+    )
+    await db_session.commit()
+
+    result = await sync_user(db_session, user.id)
+    assert result.auto_filed == 0
+    assert result.auto_skipped == 1
+    assert result.auto_failed == 0
+
+
+@pytest.mark.asyncio
+async def test_auto_file_disabled_link_no_call(
+    db_session, user, fake_google, project_context_and_link, monkeypatch
+):
+    """An enabled=False link must NOT trigger auto-file."""
+    from app.models import SeriesContextLink
+    from app.services import handoff as handoff_module
+
+    fake_google.summary_files = [
+        _drive_file("s", "Standup-summary-2026-06-12T09-00-00.000Z.pdf"),
+    ]
+
+    async def fake_file(*args, **kwargs):
+        raise AssertionError("handoff should not be called when link disabled")
+
+    monkeypatch.setattr(handoff_module, "file_meeting_to_context", fake_file)
+
+    await sync_user(db_session, user.id)
+    series = (await db_session.execute(select(MeetingSeries))).scalar_one()
+    db_session.add(
+        SeriesContextLink(
+            series_id=series.id,
+            project_context_id=project_context_and_link["ctx_id"],
+            enabled=False,
+            created_by_user_id=user.id,
+        )
+    )
+    await db_session.commit()
+
+    result = await sync_user(db_session, user.id)
+    assert result.auto_filed == 0
+    assert result.auto_skipped == 0
+    assert result.auto_failed == 0
+
+
+@pytest.mark.asyncio
+async def test_auto_file_handoff_failure_recorded(
+    db_session, user, fake_google, project_context_and_link, monkeypatch
+):
+    from app.models import SeriesContextLink
+    from app.services import handoff as handoff_module
+    from app.services.handoff import FilingResult
+
+    fake_google.summary_files = [
+        _drive_file("s", "Standup-summary-2026-06-12T09-00-00.000Z.pdf"),
+    ]
+
+    async def fake_file(
+        session, *, meeting_id, project_context_id, user_id, trigger="manual"
+    ):
+        return FilingResult(
+            item_type="meeting",
+            item_ref=str(meeting_id),
+            status="failed",
+            error="drive 500",
+        )
+
+    monkeypatch.setattr(handoff_module, "file_meeting_to_context", fake_file)
+
+    await sync_user(db_session, user.id)
+    series = (await db_session.execute(select(MeetingSeries))).scalar_one()
+    db_session.add(
+        SeriesContextLink(
+            series_id=series.id,
+            project_context_id=project_context_and_link["ctx_id"],
+            enabled=True,
+            created_by_user_id=user.id,
+        )
+    )
+    await db_session.commit()
+
+    result = await sync_user(db_session, user.id)
+    assert result.auto_filed == 0
+    assert result.auto_failed == 1
+    assert any("drive 500" in e for e in result.errors)

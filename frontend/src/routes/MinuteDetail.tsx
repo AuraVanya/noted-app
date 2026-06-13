@@ -1,7 +1,11 @@
-import { ArrowLeft, ExternalLink, Users } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, ExternalLink, Lightbulb, Users } from "lucide-react";
 import { Link, useParams } from "react-router-dom";
 
+import { AddMeetingToContextDialog } from "@/components/AddToContextDialogs";
+import { AlwaysAddPanel } from "@/components/AlwaysAddPanel";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useMeeting } from "@/hooks/useMeetings";
 import { formatLocalDate, formatLocalTime } from "@/lib/format";
@@ -39,52 +43,58 @@ const Loaded = ({
 }: {
   meeting: NonNullable<ReturnType<typeof useMeeting>["data"]>;
 }) => {
-  const { title, seriesTitle, occurredAt, attendees, summary, transcript } =
-    meeting;
+  const {
+    id,
+    title,
+    seriesId,
+    seriesTitle,
+    occurredAt,
+    attendees,
+    summary,
+    transcript,
+  } = meeting;
+  const [addOpen, setAddOpen] = useState(false);
   return (
     <>
-      <div className="mb-6">
-        <div className="mb-2 flex flex-wrap items-center gap-2">
-          <Badge variant="default">{seriesTitle}</Badge>
-          <span className="font-mono text-[11.5px] text-muted-foreground">
-            {formatLocalDate(occurredAt)} · {formatLocalTime(occurredAt)}
-          </span>
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight text-ink">{title}</h2>
-
-        {attendees.length > 0 && (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
-              <Users size={13} />
-              {attendees.length} attendees
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <Badge variant="default">{seriesTitle}</Badge>
+            <span className="font-mono text-[11.5px] text-muted-foreground">
+              {formatLocalDate(occurredAt)} · {formatLocalTime(occurredAt)}
             </span>
-            <div className="flex flex-wrap gap-1.5">
-              {attendees.slice(0, 12).map((a) => (
-                <Badge key={a.email} variant="muted">
-                  {a.displayName}
-                </Badge>
-              ))}
-              {attendees.length > 12 && (
-                <Badge variant="muted">+{attendees.length - 12} more</Badge>
-              )}
-            </div>
           </div>
-        )}
 
-        {transcript?.signedUrl && (
-          <div className="mt-5">
-            <a
-              href={transcript.signedUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-primary hover:underline"
-            >
-              View full transcript
-              <ExternalLink size={13} />
-            </a>
+          <div className="flex flex-wrap items-center gap-4">
+            <h2 className="text-2xl font-bold tracking-tight text-ink">
+              {title}
+            </h2>
+            {transcript?.signedUrl && (
+              <div className="mt-1">
+                <a
+                  href={transcript.signedUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-primary hover:underline"
+                >
+                  View full transcript
+                  <ExternalLink size={13} />
+                </a>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+        <Button onClick={() => setAddOpen(true)}>
+          <Lightbulb size={14} />
+          Add to Project Context
+        </Button>
       </div>
+
+      <div className="mb-6"></div>
+
+      <AlwaysAddPanel seriesId={seriesId} seriesTitle={seriesTitle} />
+
+      <br />
 
       <Card className="overflow-hidden">
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
@@ -115,6 +125,31 @@ const Loaded = ({
           </div>
         )}
       </Card>
+
+      {attendees.length > 0 && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
+            <Users size={13} />
+            {attendees.length} attendees
+          </span>
+          <div className="flex flex-wrap gap-1.5">
+            {attendees.slice(0, 12).map((a) => (
+              <Badge key={a.email} variant="muted">
+                {a.displayName}
+              </Badge>
+            ))}
+            {attendees.length > 12 && (
+              <Badge variant="muted">+{attendees.length - 12} more</Badge>
+            )}
+          </div>
+        </div>
+      )}
+
+      <AddMeetingToContextDialog
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        meetingId={id}
+      />
     </>
   );
 };

@@ -17,6 +17,7 @@ export interface MeetingListItem {
   attendeeCount: number;
   hasSummary: boolean;
   hasTranscript: boolean;
+  seriesHasAutoFile: boolean;
 }
 
 export interface MeetingDetail {

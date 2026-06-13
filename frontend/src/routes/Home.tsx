@@ -1,9 +1,13 @@
 import { useMemo } from "react";
-import { ChevronRight, Lightbulb } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ChevronRight, Lightbulb, Plus } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 
 import { Card } from "@/components/ui/card";
 import { useCalendarToday, type CalendarEvent } from "@/hooks/useCalendar";
+import {
+  useProjectContexts,
+  type ProjectContext,
+} from "@/hooks/useProjectContexts";
 import { useMe } from "@/hooks/useMe";
 import { useMeetings } from "@/hooks/useMeetings";
 import { formatLocalDateShort, formatLocalTime } from "@/lib/format";
@@ -22,12 +26,14 @@ export const Home = () => {
   const me = useMe();
   const today = useCalendarToday();
   const meetings = useMeetings();
+  const projects = useProjectContexts();
 
   const now = new Date();
   const greeting = greetingFor(now.getHours());
   const firstName = me.data ? firstNameOf(me.data.displayName) : "";
 
   const todayCount = today.data?.events.length ?? 0;
+  const projectCount = projects.data?.length ?? 0;
 
   // "New summaries this week" — past 7 days, has a summary file.
   const summariesThisWeek = useMemo(() => {
@@ -53,7 +59,13 @@ export const Home = () => {
               pluralize(summariesThisWeek, "new summary", "new summaries") +
               " this week",
           },
-          { label: "Projects shipping in Phase 4" },
+          {
+            label: pluralize(
+              projectCount,
+              "Project Context",
+              "Project Contexts",
+            ),
+          },
         ]}
       />
 
@@ -64,7 +76,10 @@ export const Home = () => {
           loading={today.isLoading}
           error={today.error?.message}
         />
-        <RecentProjectsEmpty />
+        <RecentProjects
+          projects={projects.data ?? []}
+          loading={projects.isLoading}
+        />
       </div>
     </div>
   );
@@ -215,24 +230,69 @@ const TodayRow = ({ event }: { event: CalendarEvent }) => {
   );
 };
 
-// --- Recent projects (empty) ---------------------------------------------
+// --- Recent projects (registry) ------------------------------------------
+
+const RecentProjects = ({
+  projects,
+  loading,
+}: {
+  projects: ProjectContext[];
+  loading: boolean;
+}) => (
+  <Card className="p-[22px]">
+    <div className="mb-3.5 flex items-center justify-between">
+      <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground-2">
+        Recent Project Contexts
+      </span>
+      <Link
+        to="/project-context"
+        className="text-[11.5px] font-semibold text-muted-foreground transition-colors hover:text-primary"
+      >
+        View all
+      </Link>
+    </div>
+    {loading ? (
+      <p className="py-4 text-sm text-muted-foreground">Loading…</p>
+    ) : projects.length === 0 ? (
+      <RecentProjectsEmpty />
+    ) : (
+      <ul>
+        {projects.slice(0, 5).map((p) => (
+          <li key={p.id}>
+            <Link
+              to={`/project-context/${p.id}`}
+              className="flex items-center gap-3 border-t border-border py-3 first:border-t-0 hover:bg-surface-2"
+            >
+              <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] bg-accent-tint-2 text-primary">
+                <Lightbulb size={16} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-[13.5px] font-semibold text-ink">
+                  {p.label}
+                </div>
+                <div className="text-[11.5px] text-muted-foreground">
+                  {p.docCount}{" "}
+                  {p.docCount === 1 ? "Doc filed" : "Docs filed"}
+                </div>
+              </div>
+              <ChevronRight size={14} className="text-muted-foreground-2" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    )}
+  </Card>
+);
 
 const RecentProjectsEmpty = () => (
-  <Card className="p-[22px]">
-    <div className="mb-3.5">
-      <span className="font-mono text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted-foreground-2">
-        Recent projects
-      </span>
+  <div className="flex flex-col items-center justify-center px-4 py-8 text-center">
+    <div className="mb-3 grid h-10 w-10 place-items-center rounded-[10px] bg-accent-tint text-primary">
+      <Plus size={18} />
     </div>
-    <div className="flex flex-col items-center justify-center px-4 py-10 text-center">
-      <div className="mb-3 grid h-10 w-10 place-items-center rounded-[10px] bg-accent-tint text-primary">
-        <Lightbulb size={18} />
-      </div>
-      <p className="text-sm font-semibold text-ink">No projects yet</p>
-      <p className="mt-1 text-[12.5px] text-muted-foreground">
-        Projects ship in Phase 4. You'll be able to chat with Claude over
-        project-scoped context — meetings, tickets, and files.
-      </p>
-    </div>
-  </Card>
+    <p className="text-sm font-semibold text-ink">No Project Contexts yet</p>
+    <p className="mt-1 text-[12.5px] text-muted-foreground">
+      Create one on the Project Context tab to start filing meeting and ticket Docs
+      into a Drive folder your claude.ai Project can sync from.
+    </p>
+  </div>
 );

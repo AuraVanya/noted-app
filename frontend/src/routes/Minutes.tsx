@@ -1,4 +1,4 @@
-import { FileText, Mic, Users, Video } from "lucide-react";
+import { FileText, Lightbulb, Mic, Users, Video } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +59,15 @@ const MeetingCard = ({ meeting }: { meeting: MeetingListItem }) => (
             {meeting.title}
           </span>
           <Badge variant="default">{meeting.seriesTitle}</Badge>
+          {meeting.seriesHasAutoFile && (
+            <span
+              title="This series auto-files to a Project Context"
+              className="inline-flex items-center gap-1 rounded-full bg-accent-tint-2 px-2 py-0.5 text-[10.5px] font-semibold text-primary"
+            >
+              <Lightbulb size={10} />
+              Auto-file
+            </span>
+          )}
         </div>
         <div className="mt-1 flex items-center gap-3 text-[12px] text-muted-foreground">
           {meeting.attendeeCount > 0 && (

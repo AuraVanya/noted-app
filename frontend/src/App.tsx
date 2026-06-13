@@ -7,8 +7,10 @@ import { Home } from "@/routes/Home";
 import { Login } from "@/routes/Login";
 import { MinuteDetail } from "@/routes/MinuteDetail";
 import { Minutes } from "@/routes/Minutes";
+import { ProjectContext } from "@/routes/ProjectContext";
+import { ProjectContextDetail } from "@/routes/ProjectContextDetail";
 import { Profile } from "@/routes/Profile";
-import { Projects } from "@/routes/Projects";
+import { TicketDetail } from "@/routes/TicketDetail";
 import { Tickets } from "@/routes/Tickets";
 
 const App = () => {
@@ -35,7 +37,9 @@ const App = () => {
         <Route path="minutes" element={<Minutes />} />
         <Route path="minutes/:id" element={<MinuteDetail />} />
         <Route path="tickets" element={<Tickets />} />
-        <Route path="projects" element={<Projects />} />
+        <Route path="tickets/:key" element={<TicketDetail />} />
+        <Route path="project-context" element={<ProjectContext />} />
+        <Route path="project-context/:id" element={<ProjectContextDetail />} />
         <Route path="profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
