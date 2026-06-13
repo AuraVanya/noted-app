@@ -10,7 +10,7 @@ Noted turns a team's meeting minutes into shared knowledge and Claude-powered co
 - `docs/noted-mockup.html` — the interactive design/interaction reference. Match its look and flows.
 
 ## Stack
-- **Frontend:** React + TypeScript (Vite), client-side routing, React Query for server state. No browser storage (`localStorage`/`sessionStorage`).
+- **Frontend:** React + TypeScript (Vite), client-side routing, React Query for server state. **Styling: Tailwind CSS + shadcn/ui** (components copied into the repo; Radix under the hood). No browser storage (`localStorage`/`sessionStorage`).
 - **Backend:** Python, FastAPI (async), Pydantic schemas for all I/O, SQLAlchemy + Alembic.
 - **DB:** PostgreSQL (SQLite acceptable for first local runs).
 - **LLM:** Anthropic Messages API. Default `claude-sonnet-4-6` for chat/generation, `claude-haiku-4-5` for cheap extraction. **Do not hardcode model strings from memory — confirm current ones at https://docs.claude.com/en/docs/about-claude/models and keep them in config.**
@@ -48,4 +48,4 @@ docs/       # noted-build-spec.md, noted-mockup.html
 - **Small commits.** After each working slice, stop so I can review the diff and commit in GitHub Desktop.
 - **Don't invent product facts** (model names, API shapes). Check official docs; if unsure, say so.
 - Follow the build order in the spec (§15). Don't jump ahead phases.
-- Keep the visual direction from the mockup: cool neutrals + restrained indigo (`#4B45C6`), monospace for timestamps/keys, left-sidebar shell.
+- Keep the visual direction from the mockup: cool neutrals + restrained indigo (`#4B45C6`), monospace for timestamps/keys, left-sidebar shell. **Theme shadcn/ui to these tokens — never ship shadcn's default theme.** `docs/noted-mockup.html` is a plain-HTML/CSS reference; replicate its look via the shadcn theme, don't copy its raw CSS. The calendar week grid and the Tickets Kanban are custom Tailwind layouts, not shadcn primitives.

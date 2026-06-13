@@ -1,4 +1,21 @@
 <!DOCTYPE html>
+<!--
+  Noted — DESIGN & INTERACTION REFERENCE (not the app's frontend code).
+
+  This is a standalone plain-HTML/CSS prototype so it opens in any browser for click-through review.
+  The actual frontend is React + TypeScript + Tailwind CSS + shadcn/ui.
+
+  HOW TO USE THIS WHEN BUILDING:
+  - Replicate the LOOK and FLOWS, not this raw CSS. Map the :root tokens below onto the
+    shadcn theme (CSS variables); do NOT ship shadcn's default theme.
+  - Token mapping: --accent #4B45C6 -> primary; --canvas #F7F8FA -> background;
+    --surface #fff -> card/popover; --border #E9EAEE -> border; --ink #15161C -> foreground;
+    --muted #71727D -> muted-foreground; --radius 12px. Keep the monospace face for
+    timestamps/keys/metadata (the signature motif).
+  - shadcn primitives cover: dialog (all modals), select (space/location), tabs/segmented
+    (context picker), dropdown-menu, toast, avatar, badge, button, card.
+  - Custom Tailwind layouts (no shadcn primitive): the Calendar week grid and the Tickets Kanban.
+-->
 <html lang="en">
 <head>
 <meta charset="UTF-8">

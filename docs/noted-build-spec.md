@@ -18,7 +18,7 @@ This document is written to be handed to Claude Code as the build brief. It assu
 
 ## 2. Tech stack
 
-- **Frontend:** React + TypeScript (Vite). Client-side routing. State via React Query (server cache) + light local state. No browser storage beyond auth session handling.
+- **Frontend:** React + TypeScript (Vite). Client-side routing. State via React Query (server cache) + light local state. **Styling: Tailwind CSS + shadcn/ui** — shadcn provides the accessible primitives (dialog, select, dropdown, tabs, toast, avatar, badge, button, card) for the many modals/pickers in the app; the calendar week grid and Tickets Kanban are custom Tailwind layouts. **Theme shadcn to the mockup tokens from the start; do not ship its default theme.** No browser storage beyond auth session handling.
 - **Backend:** Python, **FastAPI** (async; supports streaming chat responses). Pydantic models for all request/response schemas.
 - **Database:** PostgreSQL (SQLite acceptable for first local runs). SQLAlchemy + Alembic migrations.
 - **Background work:** a scheduled **sync job** (APScheduler or a cron-invoked worker for MVP; Celery/RQ if it grows). Idempotent.
@@ -252,7 +252,7 @@ POST /api/projects/{id}/messages        -> send turn (streamed response)
 | `/projects/:id` | Project chat | Claude over context; **Add context** picker with Minutes / Tickets / **Files** tabs (upload or browse Drive), multi-select, in header |
 | `/profile` | Profile | Connected accounts (Google, Atlassian), sign out |
 
-Visual direction: cool neutrals + one restrained indigo accent (`#4B45C6`), monospace for timestamps/keys/metadata, left sidebar shell. See `noted-mockup.html`.
+Visual direction: cool neutrals + one restrained indigo accent (`#4B45C6`), monospace for timestamps/keys/metadata, left sidebar shell. Built with Tailwind + shadcn/ui themed to these tokens (not shadcn defaults). `noted-mockup.html` is a plain-HTML/CSS reference for look and flows — replicate its appearance via the shadcn theme rather than porting its CSS verbatim.
 
 ---
 
