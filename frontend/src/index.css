@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Noted theme tokens. Mapped from docs/noted-mockup.html :root block.
+ * shadcn primitives consume the standard variables (--background, --card,
+ * --primary, etc.); the extra --surface-*, --ink-*, --accent-tint-* variables
+ * are project-specific and live in tailwind.config.js too.
+ */
+@layer base {
+  :root {
+    /* mockup --canvas #F7F8FA */
+    --background: 220 17% 97%;
+    --foreground: 231 14% 10%; /* --ink #15161C */
+
+    /* mockup --surface #FFFFFF */
+    --card: 0 0% 100%;
+    --card-foreground: 231 14% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 231 14% 10%;
+
+    /* mockup --surface-2 #FBFBFD */
+    --surface: 0 0% 100%;
+    --surface-2: 240 17% 98%;
+
+    /* mockup --ink-2 #3C3D47 */
+    --ink: 231 14% 10%;
+    --ink-2: 232 8% 26%;
+
+    /* mockup --border #E9EAEE / --border-strong #DDDEE4 */
+    --border: 228 11% 92%;
+    --border-strong: 225 9% 88%;
+    --input: 225 9% 88%;
+
+    /* mockup --muted #71727D / --muted-2 #9A9BA4 */
+    --muted: 240 17% 98%;
+    --muted-foreground: 232 6% 47%;
+    --muted-foreground-2: 231 5% 62%;
+
+    /* mockup --accent #4B45C6 (primary) */
+    --primary: 243 53% 52%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 244 51% 45%; /* --accent-hover #3D38AC */
+
+    /* secondary = subtle neutral surface for non-primary buttons */
+    --secondary: 240 17% 98%;
+    --secondary-foreground: 232 8% 26%;
+
+    /* accent tint surfaces (used for nav active pill, hover bgs) */
+    --accent: 244 75% 96%; /* --accent-tint #EDECFB */
+    --accent-foreground: 243 53% 52%;
+    --accent-tint: 244 75% 96%;
+    --accent-tint-2: 245 75% 97%; /* --accent-tint-2 #F4F3FD */
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --ring: 243 53% 52%;
+    --radius: 0.75rem; /* 12px */
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  .font-mono {
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.01em;
+  }
+}
