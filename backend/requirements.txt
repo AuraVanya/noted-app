@@ -12,6 +12,7 @@ cryptography==44.0.0
 python-multipart==0.0.20
 starlette==0.41.3
 APScheduler==3.10.4
+pypdf==5.1.0
 
 # dev / test
 pytest==8.3.4
