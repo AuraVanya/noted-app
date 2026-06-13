@@ -170,6 +170,20 @@ htmlcov/
 # Local databases (SQLite for early dev)
 *.db
 *.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Secrets / certs / service-account files
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+google-credentials*.json
 
 # ---- OS / editor ----
 .DS_Store
