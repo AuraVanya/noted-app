@@ -127,9 +127,9 @@ const ItemToContextDialog = ({
         <DialogHeader>
           <DialogTitle>Add to Project Context</DialogTitle>
           <DialogDescription>
-            File this {ITEM_NOUN_TITLE[itemType]} as a Google Doc into one or
-            more Project Contexts. You'll add the resulting Doc to your
-            claude.ai Project as context.
+            File this {ITEM_NOUN_TITLE[itemType]} as an item into one or more
+            Project Contexts. You'll add the resulting Doc to your AI Project as
+            context.
           </DialogDescription>
         </DialogHeader>
 

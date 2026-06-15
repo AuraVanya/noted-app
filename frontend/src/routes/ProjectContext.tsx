@@ -32,9 +32,9 @@ export const ProjectContext = () => {
             Project Context
           </h2>
           <p className="text-sm text-muted-foreground">
-            Each Project Context maps to one Drive folder. Noted files Docs of
-            your meetings and tickets into that folder. Add the folder to your
-            claude.ai Project once and it auto-syncs after.
+            Each Project Context maps to one folder. Noted files Docs of your
+            meetings and tickets into that folder. Add the folder to your AI
+            Project once and it auto-syncs after.
           </p>
           <a
             href="https://claude.ai/projects"

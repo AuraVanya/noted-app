@@ -20,6 +20,7 @@ from ..services.atlassian import (
     get_valid_atlassian_token,
     list_assigned_issues,
 )
+from ..services.demo_filters import jira_project_visible
 
 
 log = logging.getLogger(__name__)
@@ -67,6 +68,11 @@ async def list_tickets(
     except AtlassianAuthError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
+    # Demo-mode project allowlist — drop tickets in disallowed projects.
+    tickets = [
+        t for t in tickets if jira_project_visible((t.get("project") or {}).get("name", ""))
+    ]
+
     # Derive project list (unique, sorted by name)
     seen: dict[str, dict[str, Any]] = {}
     for t in tickets:
@@ -94,9 +100,14 @@ async def get_ticket(
         ) from exc
 
     try:
-        return await get_issue(token, cloud_id, issue_key)
+        ticket = await get_issue(token, cloud_id, issue_key)
     except AtlassianAuthError as exc:
         msg = str(exc)
         if "not found" in msg.lower():
             raise HTTPException(status_code=404, detail=msg) from exc
         raise HTTPException(status_code=502, detail=msg) from exc
+
+    # Demo-mode allowlist — hide as 404
+    if not jira_project_visible((ticket.get("project") or {}).get("name", "")):
+        raise HTTPException(status_code=404, detail="ticket not found")
+    return ticket

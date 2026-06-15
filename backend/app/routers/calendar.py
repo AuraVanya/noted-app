@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db import get_session
 from ..deps import current_user
 from ..models import Meeting, User
+from ..services.demo_filters import meeting_title_visible
 from ..services.google import (
     GoogleAuthError,
     event_attendees,
@@ -88,9 +89,13 @@ async def _annotate(
             # All-day events or events without a dateTime are skipped — they
             # aren't Fireflies-eligible and would mis-position on the grid.
             continue
+        title = ev.get("summary") or "(no title)"
+        # Demo-mode prefix allowlist
+        if not meeting_title_visible(title):
+            continue
         out.append({
             "id": ev.get("id"),
-            "title": ev.get("summary") or "(no title)",
+            "title": title,
             "start": start_dt.isoformat(),
             "end": (end_dt.isoformat() if end_dt else None),
             "isPast": start_dt < now_utc,

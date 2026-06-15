@@ -17,6 +17,7 @@ from sqlalchemy.orm import joinedload
 from ..db import get_session
 from ..deps import current_user
 from ..models import Meeting, SeriesContextLink, User
+from ..services.demo_filters import meeting_title_visible
 from ..services.file_urls import sign_file_url
 
 
@@ -68,6 +69,9 @@ async def list_meetings(
 
     out: list[dict[str, Any]] = []
     for m in meetings:
+        # Demo-mode prefix allowlist
+        if not meeting_title_visible(m.title):
+            continue
         attendees = _serialize_attendees(m.attendees)
         out.append({
             "id": m.id,
@@ -104,6 +108,9 @@ async def get_meeting(
     )
     meeting = result.scalar_one_or_none()
     if meeting is None:
+        raise HTTPException(status_code=404, detail="meeting not found")
+    # Demo-mode allowlist — hide as 404
+    if not meeting_title_visible(meeting.title):
         raise HTTPException(status_code=404, detail="meeting not found")
 
     summary_url: str | None = None

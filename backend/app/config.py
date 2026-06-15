@@ -70,9 +70,32 @@ class Settings(BaseSettings):
     sync_interval_minutes: int = 10
     sync_run_on_startup: bool = True
 
+    # --- Demo mode (read-time allowlists) ---
+    # Comma-separated. Empty = no filter (default). Case-insensitive.
+    # The sync job still ingests everything; these filters apply at API
+    # read time so filtered data never reaches the client.
+    demo_meeting_title_prefixes: str = ""
+    demo_jira_project_names: str = ""
+
     @property
     def is_local(self) -> bool:
         return self.app_env == "local"
+
+    @property
+    def demo_meeting_prefixes_list(self) -> list[str]:
+        return [
+            p.strip().upper()
+            for p in self.demo_meeting_title_prefixes.split(",")
+            if p.strip()
+        ]
+
+    @property
+    def demo_jira_projects_list(self) -> list[str]:
+        return [
+            p.strip().lower()
+            for p in self.demo_jira_project_names.split(",")
+            if p.strip()
+        ]
 
 
 @lru_cache

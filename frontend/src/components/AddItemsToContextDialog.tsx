@@ -103,8 +103,7 @@ export const AddItemsToContextDialog = ({
   const filedByTicketKey = useMemo(() => {
     const set = new Set<string>();
     for (const d of filedDocs.data ?? []) {
-      if (d.itemType === "ticket" && d.status === "success")
-        set.add(d.itemRef);
+      if (d.itemType === "ticket" && d.status === "success") set.add(d.itemRef);
     }
     return set;
   }, [filedDocs.data]);
@@ -198,9 +197,8 @@ export const AddItemsToContextDialog = ({
         <DialogHeader>
           <DialogTitle>Add items to {projectContextLabel}</DialogTitle>
           <DialogDescription>
-            File one or more meeting summaries and / or Jira tickets into
-            this Project Context's Drive folder. The final admit step in
-            claude.ai is manual.
+            File one or more meeting summaries and / or Jira tickets into this
+            Project Context's folder.
           </DialogDescription>
         </DialogHeader>
 
@@ -328,7 +326,9 @@ const TabButton = ({
     onClick={onClick}
     className={cn(
       "flex-1 rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-colors",
-      active ? "bg-card text-ink shadow-sm" : "text-muted-foreground hover:text-ink",
+      active
+        ? "bg-card text-ink shadow-sm"
+        : "text-muted-foreground hover:text-ink",
     )}
   >
     {children}
@@ -336,7 +336,9 @@ const TabButton = ({
       <span
         className={cn(
           "ml-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px]",
-          active ? "bg-primary text-primary-foreground" : "bg-border-strong text-ink-2",
+          active
+            ? "bg-primary text-primary-foreground"
+            : "bg-border-strong text-ink-2",
         )}
       >
         {count}
@@ -347,7 +349,9 @@ const TabButton = ({
 
 const ResultsBanner = () => (
   <div className="mb-3 rounded-md border border-border bg-surface-2 px-3 py-2.5 text-[12px] text-ink-2">
-    <div className="font-semibold text-ink">Next: admit each Doc in claude.ai</div>
+    <div className="font-semibold text-ink">
+      Next: admit each Doc in claude.ai
+    </div>
     <div className="mt-0.5 text-muted-foreground">
       Either re-connect your Drive integration in claude.ai to re-index, or
       paste each Doc URL below into your Project's <em>+ Add files → Drive</em>{" "}
@@ -388,7 +392,9 @@ const MinutesList = ({
     return <p className="py-4 text-sm text-muted-foreground">Loading…</p>;
   }
   if (items.length === 0) {
-    return <p className="py-4 text-sm text-muted-foreground">No matching minutes.</p>;
+    return (
+      <p className="py-4 text-sm text-muted-foreground">No matching minutes.</p>
+    );
   }
   return (
     <ul className="max-h-[320px] overflow-auto rounded-md border border-border">
@@ -596,10 +602,7 @@ const ResultsList = ({
           >
             <span className="mt-0.5 flex-none">
               {ok ? (
-                <CheckCircle2
-                  size={16}
-                  className="text-[hsl(141_63%_33%)]"
-                />
+                <CheckCircle2 size={16} className="text-[hsl(141_63%_33%)]" />
               ) : (
                 <XCircle size={16} className="text-destructive" />
               )}
@@ -619,7 +622,10 @@ const ResultsList = ({
               </div>
               {ok && result.driveDocUrl && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                  <CopyUrlButton url={result.driveDocUrl} label="Copy Doc URL" />
+                  <CopyUrlButton
+                    url={result.driveDocUrl}
+                    label="Copy Doc URL"
+                  />
                   <a
                     href={result.driveDocUrl}
                     target="_blank"
